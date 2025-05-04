@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eGFR計算アプリ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontSize: {
+            'xl': '1.25rem',
+            '2xl': '1.5rem',
+            '3xl': '1.875rem',
+            '4xl': '2.25rem',
+          },
+          colors: {
+            'primary': '#3b82f6',
+            'secondary': '#10b981',
+            'accent': '#8b5cf6',
+            'background': '#f3f4f6',
+          },
+        },
+      }
+    }
+  </script>
+  <style>
+    body {
+      color: rgb(0, 0, 0);
+      background: rgb(243, 244, 246);
+      font-size: 1.125rem;
+    }
+    .input-field {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.5rem;
+      font-size: 1.25rem;
+    }
+    .input-field:focus {
+      outline: none;
+      ring: 2px;
+      ring-color: #3b82f6;
+    }
+    .btn {
+      padding: 0.75rem 1.5rem;
+      background-color: #3b82f6;
+      color: white;
+      font-weight: 600;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      font-size: 1.25rem;
+    }
+    .btn:hover {
+      background-color: #2563eb;
+    }
+    .label {
+      display: block;
+      color: #374151;
+      font-size: 1.5rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    .card {
+      background-color: white;
+      padding: 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .result-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #3b82f6;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+  <div class="max-w-md mx-auto">
+    <main class="space-y-8 py-4">
+      <header class="text-center">
+        <h1 class="text-3xl md:text-4xl font-bold text-primary mb-2">eGFR計算アプリ</h1>
+        <p class="text-xl text-gray-600">腎機能の指標を簡単に計算</p>
+      </header>
+
+      <div class="card">
+        <form id="egfrForm" class="space-y-6">
+          <div>
+            <label class="label">性別</label>
+            <div class="flex space-x-6 text-xl">
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="gender"
+                  value="male"
+                  class="w-5 h-5"
+                  checked
+                />
+                <span>男性</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="gender"
+                  value="female"
+                  class="w-5 h-5"
+                />
+                <span>女性</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label for="age" class="label">年齢</label>
+            <input
+              id="age"
+              type="number"
+              class="input-field"
+              placeholder="例: 65"
+              min="0"
+              max="120"
+              required
+            />
+            <p id="ageError" class="text-red-500 mt-1 hidden"></p>
+          </div>
+
+          <div>
+            <label for="creatinine" class="label">
+              血清クレアチニン値 (Cre)
+              <span class="text-lg ml-2 text-gray-600">mg/dL</span>
+            </label>
+            <input
+              id="creatinine"
+              type="number"
+              step="0.01"
+              class="input-field"
+              placeholder="例: 0.8"
+              min="0.2"
+              max="20"
+              required
+            />
+            <p id="creatinineError" class="text-red-500 mt-1 hidden"></p>
+          </div>
+
+          <button type="submit" class="btn w-full">
+            計算する
+          </button>
+        </form>
+      </div>
+
+      <div id="resultCard" class="card hidden">
+        <div class="text-center py-2">
+          <h2 class="text-2xl font-bold mb-4">計算結果</h2>
+          
+          <div class="mb-6">
+            <p class="text-xl mb-2">eGFR値:</p>
+            <p id="egfrValue" class="text-4xl font-bold">
+              <span id="egfrNumber"></span> <span class="text-xl">mL/min/1.73m²</span>
+            </p>
+          </div>
+          
+          <div>
+            <p class="text-xl mb-2">CKDステージ:</p>
+            <p id="stageValue" class="text-2xl font-semibold"></p>
+          </div>
+          
+          <div class="mt-6 text-left text-sm text-gray-600 border-t pt-4">
+            <p>※ eGFRは腎機能の指標です。値が低いほど腎機能が低下していることを示します。</p>
+            <p>※ 正確な診断には医師の診察が必要です。</p>
+          </div>
+        </div>
+      </div>
+
+      <footer class="text-center text-gray-500 text-sm mt-8">
+        <p>日本腎臓学会のeGFR推定式に基づいて計算しています</p>
+        <p>※このアプリは医療アドバイスを提供するものではありません</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('egfrForm');
+      const resultCard = document.getElementById('resultCard');
+      const egfrNumber = document.getElementById('egfrNumber');
+      const egfrValue = document.getElementById('egfrValue');
+      const stageValue = document.getElementById('stageValue');
+      const ageError = document.getElementById('ageError');
+      const creatinineError = document.getElementById('creatinineError');
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // エラーをリセット
+        ageError.classList.add('hidden');
+        creatinineError.classList.add('hidden');
+        
+        // フォームの値を取得
+        const gender = document.querySelector('input[name="gender"]:checked').value;
+        const age = parseFloat(document.getElementById('age').value);
+        const creatinine = parseFloat(document.getElementById('creatinine').value);
+        
+        // バリデーション
+        let isValid = true;
+        
+        if (isNaN(age) || age < 0 || age > 120) {
+          ageError.textContent = '0〜120の範囲で入力してください';
+          ageError.classList.remove('hidden');
+          isValid = false;
+        }
+        
+        if (isNaN(creatinine) || creatinine < 0.2 || creatinine > 20) {
+          creatinineError.textContent = '0.2〜20の範囲で入力してください';
+          creatinineError.classList.remove('hidden');
+          isValid = false;
+        }
+        
+        if (!isValid) return;
+        
+        // eGFRを計算
+        const isFemale = gender === 'female';
+        const egfr = calculateEGFR(age, creatinine, isFemale);
+        
+        // 結果を表示
+        egfrNumber.textContent = egfr;
+        
+        // ステージを判定
+        const stage = getStage(egfr);
+        stageValue.textContent = stage;
+        
+        // 色を設定
+        const colorClass = getColorClass(egfr);
+        egfrValue.className = `text-4xl font-bold ${colorClass}`;
+        stageValue.className = `text-2xl font-semibold ${colorClass}`;
+        
+        // 結果カードを表示
+        resultCard.classList.remove('hidden');
+      });
+      
+      // eGFRの計算
+      function calculateEGFR(age, creatinine, isFemale) {
+        // 日本腎臓学会のeGFR推定式
+        let egfr = 194 * Math.pow(creatinine, -1.094) * Math.pow(age, -0.287);
+        
+        // 女性の場合は係数を掛ける
+        if (isFemale) {
+          egfr *= 0.739;
+        }
+        
+        return egfr.toFixed(2);
+      }
+      
+      // eGFRの値に基づいてステージを判定
+      function getStage(value) {
+        const numValue = parseFloat(value);
+        if (numValue >= 90) return 'G1 (正常または高値)';
+        if (numValue >= 60) return 'G2 (軽度低下)';
+        if (numValue >= 45) return 'G3a (軽度～中等度低下)';
+        if (numValue >= 30) return 'G3b (中等度～高度低下)';
+        if (numValue >= 15) return 'G4 (高度低下)';
+        return 'G5 (腎不全)';
+      }
+      
+      // eGFRの値に基づいて色を判定
+      function getColorClass(value) {
+        const numValue = parseFloat(value);
+        if (numValue >= 60) return 'text-green-600';
+        if (numValue >= 30) return 'text-yellow-600';
+        return 'text-red-600';
+      }
+    });
+  </script>
+</body>
+</html>
